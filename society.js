@@ -13,14 +13,14 @@
   }
 }(this, function (d3) {
 
-  var NetworkGraph = function(element, data) {
+  var NetworkGraph = function(element, data, options) {
     this.diameter = 1200;
     this.radius = this.diameter / 2;
     this.innerRadius = this.radius - 260;
 
     this.element = element;
     this.data = this.transformData(data);
-    this.includeIsolatedNodes = true;
+    this.includeIsolatedNodes = !options.hideUnconnected;
   };
 
   NetworkGraph.prototype.transformData = function(data) {
@@ -37,10 +37,12 @@
   NetworkGraph.prototype.init = function() {
     var label = this.element.append('label')
       .attr('class', 'society-network-toggle')
-    label.append('input')
+    var checkbox = label.append('input')
       .attr('type', 'checkbox')
-      .attr('checked', 'checked')
       .on('click', this.toggleIsolatedNodes.bind(this));
+    if (this.includeIsolatedNodes) {
+      checkbox.attr('checked', 'checked')
+    }
     label.append('span').text('Show isolated nodes')
     this.svg = this.element.append('svg')
       .attr('class', 'society-graph')
@@ -400,13 +402,14 @@
     var data = options.data || {};
     var element = d3.select(selector);
     var type = options.type || "network";
+    var hideUnconnected = options.hideUnconnected || false;
 
     var makeGraph = function(type, element, json) {
       var graph;
       if (type === "heatmap") {
         graph = new Heatmap(element, json);
       } else {
-        graph = new NetworkGraph(element, json);
+        graph = new NetworkGraph(element, json, {hideUnconnected: hideUnconnected});
       }
       graph.init();
       return graph;
