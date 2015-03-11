@@ -13,25 +13,34 @@
   }
 }(this, function (d3) {
 
-  var NetworkGraph = function(element, data, options) {
+  var NetworkGraph = function(element, data) {
     this.diameter = 1200;
     this.radius = this.diameter / 2;
     this.innerRadius = this.radius - 260;
 
     this.element = element;
-    this.data = data.nodes;
-    this.includeIsolatedNodes = !options.hideUnconnected;
+    this.data = this.transformData(data);
+    this.includeIsolatedNodes = true;
+  };
+
+  NetworkGraph.prototype.transformData = function(data) {
+    return(Object.keys(data).map(function(node) {
+      return {
+        name: node,
+        relations: Object.keys(data[node]).filter(function(edge) {
+          return(Object.keys(data).indexOf(edge) != -1);
+        })
+      };
+    }));
   };
 
   NetworkGraph.prototype.init = function() {
     var label = this.element.append('label')
       .attr('class', 'society-network-toggle')
-    var checkbox = label.append('input')
+    label.append('input')
       .attr('type', 'checkbox')
+      .attr('checked', 'checked')
       .on('click', this.toggleIsolatedNodes.bind(this));
-    if (this.includeIsolatedNodes) {
-      checkbox.attr('checked', 'checked')
-    }
     label.append('span').text('Show isolated nodes')
     this.svg = this.element.append('svg')
       .attr('class', 'society-graph')
@@ -240,17 +249,14 @@
     var findCluster = data.clusters ? _findCluster : function() { return 0; };
 
     return {
-      nodes: data.nodes.map(function(node, index) {
-        return { name: node.name, group: findCluster(index) };
+      nodes: Object.keys(data).map(function(node, index) {
+        return { name: node, group: findCluster(index) };
       }),
-      links: data.nodes.reduce(function(collector, node, index) {
-        var edge_list = node.relations.map(function(target) {
-          var edge_to = data.nodes.map(function(item) {
-            return(item.name == target);
-	  }).indexOf(true);
-          return { source: index, target: edge_to, value: 1 };
-	});
-	return(collector.concat(edge_list));
+      links: Object.keys(data).reduce(function(edges, node, source) {
+        var new_edges = Object.keys(data[node]).map(function(edge, target) {
+          return { source: source, target: target, value: data[node][edge] };
+        });
+        return(edges.concat(new_edges));
       }, [])
     };
   };
@@ -397,14 +403,13 @@
     var data = options.data || {};
     var element = d3.select(selector);
     var type = options.type || "network";
-    var hideUnconnected = options.hideUnconnected || false;
 
     var makeGraph = function(type, element, json) {
       var graph;
       if (type === "heatmap") {
         graph = new Heatmap(element, json);
       } else {
-        graph = new NetworkGraph(element, json, {hideUnconnected: hideUnconnected});
+        graph = new NetworkGraph(element, json);
       }
       graph.init();
       return graph;
